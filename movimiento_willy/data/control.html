@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Robot Willy</title>
+  <link rel="stylesheet" href="control.css">
+</head>
+<body>
+
+  <div class="dashboard">
+    <div class="top-nav">
+      <a href="index.html" class="back-link">&#8592; Volver al Inicio</a>
+    </div>
+
+    <header>
+      <h1>PANEL DE CONTROL</h1>
+      <p>Cámara en Vivo, Mapeo y Control Digital</p>
+    </header>
+
+    <div class="main-content">
+
+      <!-- Panel Izquierdo: Video y Canvas -->
+      <div class="panel-card viewers-container">
+        <div class="view-box camera-view-box">
+          <span class="view-label">CÁMARA EN VIVO</span>
+          <div id="stream-wrapper">
+            <img id="video-stream" src="" alt="Cámara ESP32">
+            <div id="stream-placeholder">
+              <div class="placeholder-icon">📡</div>
+              <div class="placeholder-text">Sin señal</div>
+              <div class="placeholder-sub" id="stream-retry-msg">Buscando ESP32...</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="view-box map-view-box">
+          <span class="view-label">MAPA DE RECORRIDO</span>
+          <canvas id="mapaCanvas" width="240" height="360" aria-label="Mapa vertical: el robot comienza abajo y orientado hacia adelante"></canvas>
+        </div>
+      </div>
+
+      <!-- Panel de botones -->
+      <div class="panel-card">
+        <div class="controls-panel">
+          <h2>Movimiento</h2>
+          <p class="controls-hint">Mantené presionado un botón para mover. Al soltar, Willy se detiene.</p>
+          <div class="control-grid" role="group" aria-label="Controles de movimiento">
+            <button class="btn btn-up" id="btn-F" type="button" aria-label="Avanzar" title="Avanzar">&#9650;</button>
+            <button class="btn btn-left" id="btn-L" type="button" aria-label="Girar a la izquierda" title="Izquierda">&#9664;</button>
+            <button class="btn btn-stop" id="btn-S" type="button">STOP</button>
+            <button class="btn btn-right" id="btn-R" type="button" aria-label="Girar a la derecha" title="Derecha">&#9654;</button>
+            <button class="btn btn-down" id="btn-B" type="button" aria-label="Retroceder" title="Retroceder">&#9660;</button>
+          </div>
+        </div>
+
+        <div class="status-bar">
+          <div class="status-dot" id="status-dot"></div>
+          <span id="status-text">Conectando...</span>
+        </div>
+
+        <div class="keyboard-hint">
+          Teclado: flechas o W A S D | Espacio = detener
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    /* ================================================================
+       CONFIGURACIÓN DE RED DINÁMICA
+    ================================================================ */
+    const ESP32_IP = window.location.hostname || "192.168.4.1";
+    const WS_URL   = `ws://${ESP32_IP}/ws`;
+    const STREAM_URL = `http://${ESP32_IP}:81/stream`;
+
+    const statusDot  = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+
+    /* ================================================================
+       WEBSOCKET CON AUTO-RECONEXIÓN
+    ================================================================ */
+    let ws = null;
+
+    function setStatus(estado, texto) {
+      statusDot.className = `status-dot ${estado}`;
+      statusText.innerText = texto;
+    }
+
+    function conectar() {
+      setStatus('', 'Conectando...');
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        setStatus('active', 'Conectado al ESP32');
+      };
+
+      ws.onclose = () => {
+        setStatus('error', 'Desconectado — reintentando...');
+        setTimeout(conectar, 2500);
+      };
+
+      ws.onerror = () => {
+        setStatus('error', 'Error de conexión');
+      };
+    }
+
+    function enviarComando(dir) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(dir);
+      }
+    }
+
+    conectar();
+
+    /* ================================================================
+       STREAM DE CÁMARA
+    ================================================================ */
+    const videoImg       = document.getElementById('video-stream');
+    const placeholder    = document.getElementById('stream-placeholder');
+    const retryMsg       = document.getElementById('stream-retry-msg');
+    let   streamTimer    = null;
+    let   streamIntento  = 0;
+
+    function mostrarPlaceholder(msg) {
+      videoImg.style.display    = 'none';
+      placeholder.style.display = 'flex';
+      retryMsg.textContent      = msg;
+    }
+
+    function ocultarPlaceholder() {
+      placeholder.style.display = 'none';
+      videoImg.style.display    = 'block';
+    }
+
+    function streamConectar() {
+      streamIntento++;
+      retryMsg.textContent = `Intento ${streamIntento}… buscando ESP32`;
+      videoImg.src = `${STREAM_URL}?t=${Date.now()}`;
+    }
+
+    videoImg.onload = () => {
+      streamIntento = 0;
+      ocultarPlaceholder();
+      clearTimeout(streamTimer);
+    };
+
+    videoImg.onerror = () => {
+      mostrarPlaceholder(`Reintentando stream… (intento ${streamIntento})`);
+      clearTimeout(streamTimer);
+      streamTimer = setTimeout(streamConectar, 4000);
+    };
+
+    mostrarPlaceholder('Buscando ESP32...');
+    streamConectar();
+
+    /* ================================================================
+       CANVAS — mapa vertical, con el frente del robot hacia arriba
+    ================================================================ */
+    const canvas = document.getElementById('mapaCanvas');
+    const ctx    = canvas.getContext('2d');
+
+    let posX   = canvas.width  / 2;
+    let posY   = canvas.height * 0.78;
+    let angulo = 0;
+
+    const historialPuntos = [{ x: posX, y: posY }];
+
+    function renderizarMapa() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#e8edf5';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = 'rgba(26, 35, 126, 0.12)';
+      ctx.lineWidth   = 1;
+      for (let x = 0; x < canvas.width; x += 20) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += 20) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+      }
+
+      if (historialPuntos.length > 1) {
+        ctx.beginPath();
+        ctx.moveTo(historialPuntos[0].x, historialPuntos[0].y);
+        for (let i = 1; i < historialPuntos.length; i++) {
+          ctx.lineTo(historialPuntos[i].x, historialPuntos[i].y);
+        }
+        ctx.strokeStyle = '#89b4fa';
+        ctx.lineWidth   = 2;
+        ctx.stroke();
+      }
+
+      ctx.save();
+      ctx.translate(posX, posY);
+      ctx.rotate(angulo);
+      ctx.beginPath();
+      ctx.moveTo(0, -11);
+      ctx.lineTo(8, 9);
+      ctx.lineTo(0, 5);
+      ctx.lineTo(-8, 9);
+      ctx.closePath();
+      ctx.fillStyle = '#e53967';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    renderizarMapa();
+
+    function actualizarMapa(dir) {
+      const paso = 8;
+      const giro = 0.12;
+      if (dir === 'F') { posX += Math.sin(angulo) * paso; posY -= Math.cos(angulo) * paso; }
+      if (dir === 'B') { posX -= Math.sin(angulo) * paso; posY += Math.cos(angulo) * paso; }
+      if (dir === 'L') angulo -= giro;
+      if (dir === 'R') angulo += giro;
+      historialPuntos.push({ x: posX, y: posY });
+      renderizarMapa();
+    }
+
+    /* Botones táctiles y mouse: movimiento continuo mientras se mantienen */
+    const botones = [
+      { id: 'btn-F', cmd: 'F' },
+      { id: 'btn-B', cmd: 'B' },
+      { id: 'btn-L', cmd: 'L' },
+      { id: 'btn-R', cmd: 'R' },
+      { id: 'btn-S', cmd: 'S' }
+    ];
+
+    botones.forEach(({ id, cmd }) => {
+      const boton = document.getElementById(id);
+      let intervalo = null;
+      const iniciar = (e) => {
+        e.preventDefault();
+        if (intervalo) return;
+        try { boton.setPointerCapture(e.pointerId); } catch (error) {}
+        boton.classList.add('pressed');
+        enviarComando(cmd);
+        if (cmd !== 'S') {
+          actualizarMapa(cmd);
+          intervalo = setInterval(() => { enviarComando(cmd); actualizarMapa(cmd); }, 150);
+        }
+      };
+      const soltar = () => {
+        clearInterval(intervalo);
+        intervalo = null;
+        boton.classList.remove('pressed');
+        if (cmd !== 'S') enviarComando('S');
+      };
+      boton.addEventListener('pointerdown', iniciar);
+      boton.addEventListener('pointerup', soltar);
+      boton.addEventListener('pointercancel', soltar);
+      boton.addEventListener('lostpointercapture', soltar);
+    });
+
+    /* ================================================================
+       TECLADO — Flechas + WASD
+    ================================================================ */
+    const keyMap = {
+      ArrowUp: 'F', w: 'F', W: 'F', ArrowDown: 'B', s: 'B', S: 'B',
+      ArrowLeft: 'L', a: 'L', A: 'L', ArrowRight: 'R', d: 'R', D: 'R'
+    };
+    let teclaActiva = null;
+    let intervaloTecla = null;
+    document.addEventListener('keydown', (e) => {
+      const cmd = keyMap[e.key];
+      if (e.key === ' ') { e.preventDefault(); enviarComando('S'); return; }
+      if (!cmd || e.repeat) return;
+      e.preventDefault();
+      teclaActiva = cmd;
+      enviarComando(cmd);
+      actualizarMapa(cmd);
+      clearInterval(intervaloTecla);
+      intervaloTecla = setInterval(() => { enviarComando(cmd); actualizarMapa(cmd); }, 150);
+    });
+    document.addEventListener('keyup', (e) => {
+      const cmd = keyMap[e.key];
+      if (cmd && cmd === teclaActiva) {
+        clearInterval(intervaloTecla);
+        intervaloTecla = null;
+        teclaActiva = null;
+        enviarComando('S');
+      }
+    });
+    window.addEventListener('blur', () => { clearInterval(intervaloTecla); teclaActiva = null; enviarComando('S'); });
+
+    /* ================================================================
+       CANVAS RESPONSIVE
+    ================================================================ */
+    function resizeCanvas() {
+      const newWidth = Math.round(canvas.clientWidth);
+      const newHeight = Math.round(canvas.clientHeight);
+      if (newWidth > 0 && newHeight > 0 && (newWidth !== canvas.width || newHeight !== canvas.height)) {
+        canvas.width  = newWidth;
+        canvas.height = newHeight;
+        posX = canvas.width  / 2;
+        posY = canvas.height * 0.78;
+        historialPuntos.length = 0;
+        historialPuntos.push({ x: posX, y: posY });
+        renderizarMapa();
+      }
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+  </script>
+
+</body>
+</html>
+

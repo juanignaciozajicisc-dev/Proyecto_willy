@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1120" viewBox="0 0 1440 1120" role="img" aria-labelledby="title desc">
+  <title id="title">Diagrama de conexiones de Willy: ESP32, L298N y dos servomotores</title>
+  <desc id="desc">Esquema de potencia y señales basado en los pines del programa prueba_control_willy.ino. GPIO18 y GPIO19 para los servos son una propuesta que aún no está implementada en el código.</desc>
+  <defs>
+    <style>
+      .bg{fill:#0b1220}.panel{fill:#111c2e;stroke:#293a53;stroke-width:2}.card{fill:#16243a;stroke:#39516f;stroke-width:2}.title{font:700 32px Arial,sans-serif;fill:#f1f5f9}.sub{font:16px Arial,sans-serif;fill:#a9bdd4}.h{font:700 19px Arial,sans-serif;fill:#e6eef8}.t{font:15px Arial,sans-serif;fill:#cfdaea}.small{font:13px Arial,sans-serif;fill:#a9bdd4}.tiny{font:12px Arial,sans-serif;fill:#91a5bd}.wire{fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}.sig{stroke:#55a7ff}.motor{stroke:#ffbf47}.pwr{stroke:#ff666d}.servo{stroke:#c18aff}.gnd{stroke:#a7b4c4}.bus{stroke:#a7b4c4;stroke-width:5}.tag{font:700 13px Arial,sans-serif;fill:#fff}.n{fill:#0e1726;stroke:#526a87;stroke-width:1}
+    </style>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#55a7ff"/></marker>
+    <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#ff666d"/></marker>
+  </defs>
+  <rect class="bg" width="1440" height="1120"/>
+  <text class="title" x="48" y="58">WILLY · DIAGRAMA COMPLETO DE CONEXIONES</text>
+  <text class="sub" x="50" y="88">ESP32 DevKit + puente H L298N + 2 motores DC + 2 servos · señales del L298N tomadas del sketch del proyecto</text>
+
+  <!-- Main device cards -->
+  <rect class="card" x="54" y="170" width="350" height="500" rx="18"/>
+  <text class="h" x="82" y="208">ESP32 DevKit</text>
+  <text class="small" x="82" y="233">Alimentar por USB / entrada de la placa</text>
+  <rect class="n" x="82" y="263" width="294" height="376" rx="12"/>
+  <text class="tiny" x="101" y="290">SEÑALES (GPIO)</text>
+  <text class="t" x="103" y="324">GPIO14  · PWM Motor A</text>
+  <text class="t" x="103" y="357">GPIO27  · IN1</text>
+  <text class="t" x="103" y="390">GPIO26  · IN2</text>
+  <text class="t" x="103" y="423">GPIO32  · PWM Motor B</text>
+  <text class="t" x="103" y="456">GPIO25  · IN3</text>
+  <text class="t" x="103" y="489">GPIO33  · IN4</text>
+  <line x1="100" y1="510" x2="354" y2="510" stroke="#344962"/>
+  <text class="tiny" x="101" y="538">SERVOS · PROPUESTA DE PINES</text>
+  <text class="t" x="103" y="571">GPIO18  · señal Servo 1</text>
+  <text class="t" x="103" y="604">GPIO19  · señal Servo 2</text>
+  <text class="tiny" x="101" y="628">GND ESP32 → GND común</text>
+
+  <rect class="card" x="536" y="170" width="376" height="500" rx="18"/>
+  <text class="h" x="564" y="208">Puente H L298N</text>
+  <text class="small" x="564" y="233">Módulo de doble canal para motores DC</text>
+  <rect class="n" x="564" y="263" width="320" height="376" rx="12"/>
+  <text class="tiny" x="585" y="290">ENTRADAS DE CONTROL</text>
+  <text class="t" x="585" y="324">ENA  ← GPIO14  (PWM)</text>
+  <text class="t" x="585" y="357">IN1  ← GPIO27</text>
+  <text class="t" x="585" y="390">IN2  ← GPIO26</text>
+  <text class="t" x="585" y="423">ENB  ← GPIO32  (PWM)</text>
+  <text class="t" x="585" y="456">IN3  ← GPIO25</text>
+  <text class="t" x="585" y="489">IN4  ← GPIO33</text>
+  <line x1="584" y1="510" x2="864" y2="510" stroke="#344962"/>
+  <text class="tiny" x="585" y="538">POTENCIA / SALIDAS</text>
+  <text class="t" x="585" y="571">Vs / +12V  ← +9 V batería</text>
+  <text class="t" x="585" y="604">OUT1–OUT2 → Motor A</text>
+  <text class="t" x="585" y="628">OUT3–OUT4 → Motor B</text>
+
+  <rect class="card" x="1042" y="170" width="344" height="226" rx="18"/>
+  <text class="h" x="1070" y="208">Servo 1 y Servo 2</text>
+  <text class="t" x="1070" y="249">Servo 1: señal → GPIO18</text>
+  <text class="t" x="1070" y="280">Servo 2: señal → GPIO19</text>
+  <text class="t" x="1070" y="311">Rojo: +5 V regulados → V+</text>
+  <text class="t" x="1070" y="342">Marrón / negro: GND común</text>
+  <text class="small" x="1070" y="374">Usar fuente 5 V con corriente suficiente</text>
+
+  <rect class="card" x="1042" y="442" width="344" height="228" rx="18"/>
+  <text class="h" x="1070" y="480">Alimentación</text>
+  <text class="t" x="1070" y="521">Batería 9 V (+) → Vs / +12V L298N</text>
+  <text class="t" x="1070" y="552">Batería 9 V (−) → GND común</text>
+  <text class="t" x="1070" y="583">Buck 9→5 V → servos (+5 V)</text>
+  <text class="t" x="1070" y="614">USB → ESP32 (alimentación separada)</text>
+  <text class="small" x="1070" y="646">Unir GND de batería, buck, ESP32 y L298N</text>
+
+  <!-- Signal wires ESP32 to driver -->
+  <path class="wire sig" d="M404 324 H536"/><text class="tag" x="426" y="315">GPIO14→ENA</text>
+  <path class="wire sig" d="M404 357 H536"/><text class="tag" x="426" y="350">GPIO27→IN1</text>
+  <path class="wire sig" d="M404 390 H536"/><text class="tag" x="426" y="383">GPIO26→IN2</text>
+  <path class="wire sig" d="M404 423 H536"/><text class="tag" x="426" y="416">GPIO32→ENB</text>
+  <path class="wire sig" d="M404 456 H536"/><text class="tag" x="426" y="449">GPIO25→IN3</text>
+  <path class="wire sig" d="M404 489 H536"/><text class="tag" x="426" y="482">GPIO33→IN4</text>
+  <!-- Servo signal wires -->
+  <path class="wire servo" d="M404 571 H462 V714 H1014 V249 H1042"/>
+  <path class="wire servo" d="M404 604 H480 V730 H1000 V280 H1042"/>
+  <!-- Driver motor outputs -->
+  <path class="wire motor" d="M912 571 H974 V756 H1064"/>
+  <path class="wire motor" d="M912 604 H992 V772 H1064"/>
+  <rect class="card" x="1064" y="714" width="322" height="108" rx="16"/>
+  <text class="h" x="1086" y="751">Motores DC de tracción</text>
+  <text class="t" x="1086" y="783">Motor A ↔ OUT1 / OUT2 · Motor B ↔ OUT3 / OUT4</text>
+  <text class="small" x="1086" y="806">Si un lado gira al revés, intercambiar sus dos cables de salida.</text>
+
+  <!-- Power and common ground buses -->
+  <rect class="card" x="55" y="854" width="1330" height="211" rx="18"/>
+  <text class="h" x="82" y="891">Buses de potencia y tierra común</text>
+  <rect class="n" x="90" y="922" width="235" height="94" rx="12"/>
+  <text class="h" x="113" y="958">Batería de motores</text>
+  <text class="t" x="113" y="989">9 V (+ / −)</text>
+  <rect class="n" x="422" y="922" width="260" height="94" rx="12"/>
+  <text class="h" x="445" y="958">Convertidor buck</text>
+  <text class="t" x="445" y="989">entrada 9 V · salida 5 V regulados</text>
+  <rect class="n" x="780" y="922" width="250" height="94" rx="12"/>
+  <text class="h" x="803" y="958">GND común</text>
+  <text class="t" x="803" y="989">− batería = buck = ESP32 = L298N = servos</text>
+  <path class="wire pwr" marker-end="url(#arrowRed)" d="M325 950 H536 V630 H564"/>
+  <text class="tag" x="354" y="942">+9 V → Vs</text>
+  <path class="wire pwr" marker-end="url(#arrowRed)" d="M325 978 H422"/>
+  <text class="tag" x="337" y="1007">+9 V al buck</text>
+  <path class="wire pwr" marker-end="url(#arrowRed)" d="M682 950 H1110 V342 H1042"/>
+  <text class="tag" x="860" y="942">+5 V regulados → V+ servos</text>
+  <path class="wire gnd" d="M325 1000 H780"/>
+  <path class="wire gnd" d="M682 1000 H780"/>
+  <path class="wire gnd" d="M1030 1000 H1345 V680 H1370"/>
+  <text class="small" x="1055" y="977">Conectar también a GND del ESP32, GND del L298N y GND de ambos servos.</text>
+
+  <!-- Notes -->
+  <rect x="50" y="1080" width="1340" height="1" fill="#293a53"/>
+  <text class="tiny" x="56" y="1101">Nota: GPIO18/GPIO19 son una asignación sugerida para los servos; el sketch actual no los configura. Retirar jumpers ENA/ENB para que GPIO14/GPIO32 controlen el PWM.</text>
+  <text class="tiny" x="56" y="1118">No alimentar servos desde 3V3 del ESP32. La placa L298N puede variar: revisar serigrafía y jumper 5V del módulo. Una pila rectangular de 9 V suele no ser adecuada para motores de tracción.</text>
+</svg>

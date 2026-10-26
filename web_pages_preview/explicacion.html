@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Cómo funciona Willy, robot móvil controlado por Wi-Fi con ESP32-CAM, transmisión de video y tracción diferencial.">
+    <link rel="stylesheet" href="diseno.css">
+    <title>Proyecto Willy | Cómo funciona</title>
+</head>
+<body>
+    <main class="container explanation">
+        <header class="page-header">
+            <p class="eyebrow">Proyecto de robótica móvil</p>
+            <h1>Conocé a Willy</h1>
+            <p class="subtitle">Un robot móvil que combina control remoto, video en vivo y una interfaz web.</p>
+            <div class="tech-tags" aria-label="Tecnologías principales">
+                <span>ESP32-CAM</span><span>Wi-Fi</span><span>WebSocket</span><span>MJPEG</span>
+            </div>
+        </header>
+
+        <section class="info-card" aria-labelledby="intro-title">
+            <h2 id="intro-title">¿Qué hace el proyecto?</h2>
+            <p>Willy es una plataforma móvil teleoperada. Una persona se conecta a la red Wi-Fi del robot, abre el panel desde el celular o la computadora y envía órdenes de movimiento. Al mismo tiempo puede ver la cámara y una representación gráfica del recorrido estimado.</p>
+            <p>El sistema documentado se controla a distancia: no incluye sensores de distancia ni un modo autónomo para detectar y esquivar obstáculos.</p>
+        </section>
+
+        <section class="info-card" aria-labelledby="flujo-title">
+            <h2 id="flujo-title">Cómo viaja una orden</h2>
+            <p>El control, el video y la trayectoria se presentan juntos en el navegador, pero cada función sigue un camino distinto.</p>
+            <div class="flow-diagram" role="img" aria-label="El navegador envía órdenes por Wi-Fi al ESP32-CAM, que controla el L298N y los motores. La cámara envía video al navegador y el panel dibuja el movimiento estimado.">
+                <div class="flow-node"><span class="flow-icon" aria-hidden="true">⌖</span><strong>Panel web</strong><small>Celular o PC</small></div>
+                <span class="flow-arrow" aria-hidden="true">⇄</span>
+                <div class="flow-node flow-core"><span class="flow-icon" aria-hidden="true">◉</span><strong>ESP32-CAM</strong><small>Wi-Fi y control</small></div>
+                <span class="flow-arrow" aria-hidden="true">→</span>
+                <div class="flow-node"><span class="flow-icon" aria-hidden="true">⚙</span><strong>L298N</strong><small>Potencia y dirección</small></div>
+                <span class="flow-arrow" aria-hidden="true">→</span>
+                <div class="flow-node"><span class="flow-icon" aria-hidden="true">◖</span><strong>Motores</strong><small>Desplazan el robot</small></div>
+            </div>
+            <div class="data-lanes">
+                <p><strong>Órdenes:</strong> navegador → WebSocket → ESP32 → controlador L298N.</p>
+                <p><strong>Video:</strong> cámara OV2640 → flujo MJPEG → navegador.</p>
+                <p><strong>Mapa:</strong> el panel dibuja el movimiento a partir de los comandos enviados; no es una medición de posición hecha por sensores.</p>
+            </div>
+        </section>
+
+        <section class="info-card" aria-labelledby="hardware-title">
+            <h2 id="hardware-title">Componentes y conexiones de control</h2>
+            <p>La tracción es diferencial: dos motores DC independientes impulsan los lados izquierdo y derecho. Las ruedas delanteras libres sirven de apoyo y permiten que el chasis gire.</p>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>ESP32-CAM</th><th>L298N</th><th>Función</th></tr></thead>
+                    <tbody>
+                        <tr><td>GPIO 14</td><td>ENA</td><td>Velocidad del motor A (PWM)</td></tr>
+                        <tr><td>GPIO 12</td><td>IN1</td><td>Dirección del motor A</td></tr>
+                        <tr><td>GPIO 13</td><td>IN2</td><td>Dirección del motor A</td></tr>
+                        <tr><td>GPIO 15</td><td>IN3</td><td>Dirección del motor B</td></tr>
+                        <tr><td>GPIO 2</td><td>IN4</td><td>Dirección del motor B</td></tr>
+                        <tr><td>GPIO 4</td><td>ENB</td><td>Velocidad del motor B (PWM)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="small-note">El programa actual controla dos motores DC. Los servos mencionados en otros materiales no están conectados ni configurados en este firmware.</p>
+        </section>
+
+        <section class="info-card" aria-labelledby="software-title">
+            <h2 id="software-title">Red, control y respuesta</h2>
+            <ol class="steps-list">
+                <li><strong>Conexión directa:</strong> el robot crea la red <code>Robot_Willy_AP</code>, con dirección local <code>192.168.4.1</code>. La contraseña está vacía en la configuración actual.</li>
+                <li><strong>Órdenes:</strong> el navegador mantiene una conexión WebSocket en <code>/ws</code>. Los botones se pueden mantener presionados; al soltarlos se envía la orden de detenerse. También se admite teclado.</li>
+                <li><strong>Movimiento:</strong> el ESP32 cambia el sentido de giro y la señal PWM de cada motor mediante el L298N. Así puede avanzar, retroceder, detenerse o curvar hacia un lado.</li>
+                <li><strong>Cámara:</strong> la OV2640 envía video MJPEG por el puerto 81. La imagen requiere que la cámara haya iniciado correctamente.</li>
+                <li><strong>Interfaz:</strong> el indicador muestra la conexión del control. Si se pierde WebSocket, el firmware detiene los motores al desconectar el cliente.</li>
+            </ol>
+        </section>
+
+        <section class="info-card" aria-labelledby="uso-title">
+            <h2 id="uso-title">Puesta en marcha</h2>
+            <ol class="steps-list">
+                <li>Encendé el robot y conectá el teléfono o la computadora a <code>Robot_Willy_AP</code>.</li>
+                <li>Abrí <code>http://192.168.4.1</code> en el navegador y entrá al panel de control.</li>
+                <li>Comprobá el estado de conexión y la señal de cámara. Usá movimientos breves en un espacio despejado.</li>
+                <li>Soltá el control o presioná <strong>STOP</strong> para frenar. Si se corta la conexión, volvé a conectarte a la red del robot.</li>
+            </ol>
+            <p class="small-note">Alimentación: los motores requieren una fuente adecuada conectada al L298N. El ESP32-CAM se alimenta por separado y todas las tierras deben compartir GND. No conectes la batería de motores directamente al ESP32.</p>
+        </section>
+
+        <nav class="botones" aria-label="Navegación del proyecto">
+            <a href="control.html"><button type="button">Abrir panel de control</button></a>
+            <a href="index.html"><button type="button" class="btn-secondary">Volver al inicio</button></a>
+        </nav>
+        <footer>Integrantes: Foglia, Pallas, T. Martinez, Milano, Moreno Perez y Zajic</footer>
+    </main>
+</body>
+</html>
