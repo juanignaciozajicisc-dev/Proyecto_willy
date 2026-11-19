@@ -3,6 +3,42 @@
 
 #include <Arduino.h>
 
+const char PAGE_LOGIN[] PROGMEM = R"rawliteral(<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Acceso | Proyecto Willy</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:#f0f4f8;font:16px 'Segoe UI',sans-serif;color:#263238}
+    main{width:min(100%,420px);padding:28px;background:#fff;border-radius:16px;box-shadow:0 8px 28px #1a237e25}h1{text-align:center;color:#1a237e;margin:0 0 8px}p{text-align:center;color:#596579;margin:0 0 22px}
+    label{display:block;margin:14px 0 6px;font-weight:600}input{width:100%;padding:12px;border:1px solid #bdc8d8;border-radius:8px;font:inherit}button{width:100%;margin-top:18px;padding:13px;border:0;border-radius:8px;background:#1a237e;color:white;font:600 1rem 'Segoe UI',sans-serif;cursor:pointer}button.link{width:auto;margin:14px 0 0;background:none;color:#1a237e;padding:0;text-decoration:underline}#message{padding:10px;border-radius:8px;margin:14px 0}.hidden{display:none!important}.error{background:#ffebee;color:#a40018}.success{background:#e8f5e9;color:#176b2c}
+  </style>
+</head>
+<body><main>
+  <h1>Proyecto Willy</h1><p id="subtitle">Iniciá sesión para continuar</p><div id="message" class="hidden" role="status"></div>
+  <form id="login-form">
+    <label for="login-email">Correo electrónico</label><input id="login-email" name="email" type="email" autocomplete="username" required>
+    <label for="login-password">Contraseña</label><input id="login-password" name="password" type="password" autocomplete="current-password" required>
+    <button>Iniciar sesión</button><button type="button" class="link" id="show-register">Crear usuario</button>
+  </form>
+  <form id="register-form" class="hidden">
+    <label for="name">Nombre</label><input id="name" name="name" maxlength="64" autocomplete="name" required>
+    <label for="email">Correo electrónico</label><input id="email" name="email" type="email" maxlength="64" autocomplete="email" required>
+    <label for="password">Contraseña</label><input id="password" name="password" type="password" minlength="8" maxlength="64" autocomplete="new-password" required>
+    <label for="confirm">Repetí la contraseña</label><input id="confirm" type="password" minlength="8" maxlength="64" autocomplete="new-password" required>
+    <button>Crear usuario</button><button type="button" class="link" id="show-login">Ya tengo cuenta</button>
+  </form>
+</main><script>
+const loginForm=document.getElementById('login-form'),registerForm=document.getElementById('register-form'),message=document.getElementById('message');
+function notice(text,type='error'){message.textContent=text;message.className=type}function clearNotice(){message.className='hidden';message.textContent=''}
+document.getElementById('show-register').onclick=()=>{clearNotice();loginForm.classList.add('hidden');registerForm.classList.remove('hidden');document.getElementById('subtitle').textContent='Cualquier persona conectada a Willy puede crear una cuenta'};
+document.getElementById('show-login').onclick=()=>{clearNotice();registerForm.classList.add('hidden');loginForm.classList.remove('hidden');document.getElementById('subtitle').textContent='Iniciá sesión para continuar'};
+async function submitForm(url,form){const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(new FormData(form))});return response.json()}
+loginForm.onsubmit=async e=>{e.preventDefault();clearNotice();try{const data=await submitForm('/login',loginForm);if(data.ok)location.href='/index.html';else notice(data.message)}catch(_){notice('No se pudo conectar con Willy.')}};
+registerForm.onsubmit=async e=>{e.preventDefault();clearNotice();if(document.getElementById('password').value!==document.getElementById('confirm').value)return notice('Las contraseñas no coinciden.');try{const data=await submitForm('/register',registerForm);if(!data.ok)return notice(data.message);registerForm.reset();document.getElementById('show-login').click();document.getElementById('login-email').value=data.email;notice('Cuenta creada. Iniciá sesión para continuar.','success')}catch(_){notice('No se pudo conectar con Willy.')}};
+</script></body></html>)rawliteral";
+
 // =============================================================================
 // PÁGINA DE INICIO (INDEX.HTML)
 // =============================================================================
@@ -15,6 +51,7 @@ const char PAGE_INDEX[] PROGMEM = R"rawliteral(<!DOCTYPE html>
     <title>Robot Willy - Inicio</title>
 </head>
 <body>
+    <a href="/logout" style="position:fixed;top:14px;right:16px;color:#1a237e;font-weight:600;">Cerrar sesión</a>
     <div class="container">
         <h1>Proyecto Willy</h1>
         <p class="subtitle">Robot Explorador Autónomo y Teleoperado</p>
@@ -47,6 +84,7 @@ const char PAGE_CONTROL[] PROGMEM = R"rawliteral(<!DOCTYPE html>
   <div class="dashboard">
     <div class="top-nav">
       <a href="index.html" class="back-link">&#8592; Volver al Inicio</a>
+      <a href="/logout" class="back-link">Cerrar sesión</a>
     </div>
 
     <header>
@@ -61,7 +99,7 @@ const char PAGE_CONTROL[] PROGMEM = R"rawliteral(<!DOCTYPE html>
         <div class="view-box camera-view-box">
           <span class="view-label">CÁMARA EN VIVO</span>
           <div id="stream-wrapper">
-            <img id="video-stream" src="" alt="Cámara Raspberry Pi">
+          <img id="video-stream" src="" alt="Video MJPEG">
             <div id="stream-placeholder">
               <div class="placeholder-icon">📡</div>
               <div class="placeholder-text">Sin señal</div>
@@ -70,8 +108,8 @@ const char PAGE_CONTROL[] PROGMEM = R"rawliteral(<!DOCTYPE html>
           </div>
         </div>
         <div class="camera-stream-config" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%;">
-          <label for="stream-url">Stream MJPEG de Raspberry Pi:</label>
-          <input id="stream-url" type="url" inputmode="url" placeholder="http://IP-DE-LA-PI:PUERTO/stream" style="flex:1;min-width:210px;padding:10px;border:1px solid #9aa8bd;border-radius:8px;">
+          <label for="stream-url">URL de video MJPEG (opcional):</label>
+          <input id="stream-url" type="url" inputmode="url" placeholder="http://IP:PUERTO/stream" style="flex:1;min-width:210px;padding:10px;border:1px solid #9aa8bd;border-radius:8px;">
           <button id="stream-connect" type="button" style="padding:10px 14px;border:0;border-radius:8px;background:#1a237e;color:white;">Conectar cámara</button>
         </div>
 
@@ -182,11 +220,11 @@ const char PAGE_CONTROL[] PROGMEM = R"rawliteral(<!DOCTYPE html>
     function streamConectar() {
       STREAM_URL = streamUrlInput.value.trim();
       if (!STREAM_URL) {
-        mostrarPlaceholder('Ingresá la URL MJPEG de la Raspberry Pi');
+        mostrarPlaceholder('Configurá una URL de video MJPEG si tenés una cámara conectada.');
         return;
       }
       streamIntento++;
-      retryMsg.textContent = `Intento ${streamIntento}… conectando con Raspberry Pi`;
+      retryMsg.textContent = `Intento ${streamIntento}… buscando el video`;
       const separador = STREAM_URL.includes('?') ? '&' : '?';
       videoImg.src = `${STREAM_URL}${separador}t=${Date.now()}`;
     }
@@ -207,7 +245,7 @@ const char PAGE_CONTROL[] PROGMEM = R"rawliteral(<!DOCTYPE html>
 
     videoImg.onerror = () => {
       if (!streamUrlInput.value.trim()) {
-        mostrarPlaceholder('Ingresá la URL MJPEG de la Raspberry Pi');
+        mostrarPlaceholder('Configurá una URL de video MJPEG si tenés una cámara conectada.');
         return;
       }
       mostrarPlaceholder(`Reintentando stream… (intento ${streamIntento})`);
@@ -215,7 +253,7 @@ const char PAGE_CONTROL[] PROGMEM = R"rawliteral(<!DOCTYPE html>
       streamTimer = setTimeout(streamConectar, 4000);
     };
 
-    mostrarPlaceholder('Ingresá la URL MJPEG de la Raspberry Pi');
+    mostrarPlaceholder('Configurá una URL de video MJPEG si tenés una cámara conectada.');
     if (STREAM_URL) streamConectar();
 
     /* ================================================================
@@ -444,7 +482,7 @@ const char PAGE_EXPLICACION[] PROGMEM = R"rawliteral(<!DOCTYPE html>
         <section class="info-card" aria-labelledby="software-title">
             <h2 id="software-title">Red, control y respuesta</h2>
             <ol class="steps-list">
-                <li><strong>Conexión directa:</strong> el robot crea la red <code>Robot_Willy_AP</code>, con dirección local <code>192.168.4.1</code>. La contraseña está vacía en la configuración actual.</li>
+                <li><strong>Conexión directa:</strong> el robot crea la red <code>Robot_Willy_AP</code>, protegida con contraseña. Su dirección local es <code>192.168.4.1</code>.</li>
                 <li><strong>Órdenes:</strong> el navegador mantiene una conexión WebSocket en <code>/ws</code>. Los botones se pueden mantener presionados; al soltarlos se envía la orden de detenerse. También se admite teclado.</li>
                 <li><strong>Movimiento:</strong> el ESP32 cambia el sentido de giro y la señal PWM de cada motor mediante el L298N. Así puede avanzar, retroceder, detenerse o curvar hacia un lado.</li>
                 <li><strong>Cámara:</strong> la OV2640 envía video MJPEG por el puerto 81. La imagen requiere que la cámara haya iniciado correctamente.</li>
@@ -455,8 +493,9 @@ const char PAGE_EXPLICACION[] PROGMEM = R"rawliteral(<!DOCTYPE html>
         <section class="info-card" aria-labelledby="uso-title">
             <h2 id="uso-title">Puesta en marcha</h2>
             <ol class="steps-list">
-                <li>Encendé el robot y conectá el teléfono o la computadora a <code>Robot_Willy_AP</code>.</li>
-                <li>Abrí <code>http://192.168.4.1</code> en el navegador y entrá al panel de control.</li>
+                <li>Encendé el robot y conectá el teléfono a <code>Robot_Willy_AP</code>.</li>
+                <li>Abrí <code>http://192.168.4.1</code>, creá un usuario o iniciá sesión.</li>
+                <li>Después del login, elegí desde el inicio la explicación o el panel de control.</li>
                 <li>Comprobá el estado de conexión y la señal de cámara. Usá movimientos breves en un espacio despejado.</li>
                 <li>Soltá el control o presioná <strong>STOP</strong> para frenar. Si se corta la conexión, volvé a conectarte a la red del robot.</li>
             </ol>
@@ -1222,4 +1261,5 @@ header p {
 )rawliteral";
 
 #endif // WEB_PAGES_H
+
 
